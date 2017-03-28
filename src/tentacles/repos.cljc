@@ -8,7 +8,7 @@
   #?(:clj
      (:use [clj-http.client :only [post put]]
            [clojure.java.io :only [file]]
-           [tentacles.core :only [api-call no-content? raw-api-call]]
+           [tentacles.core :only [api-call no-content? raw-api-call reactions-header]]
            [cheshire.core :only [generate-string]])
      :cljs
      (:use [tentacles.core :only [api-call no-content? raw-api-call]])))
@@ -205,6 +205,13 @@
   [user repo id options]
   (no-content? (api-call :delete "repos/%s/%s/comments/%s" [user repo id] options)))
 
+;; Reactions API
+
+(defn commit-comment-reactions
+  "Lists reactions on a comment"
+  [user repo comment-id & [options]]
+  (api-call :get "repos/%s/%s/comments/%s/reactions" [user repo comment-id] (reactions-header options)))
+
 ;; ## Repo Downloads API
 
 (defn downloads
@@ -302,7 +309,7 @@
 (defn watching
   "List all the repositories that a user is watching."
   [user & [options]]
-  (api-call :get "users/%s/watched" [user] options))
+  (api-call :get "users/%s/subscriptions" [user] options))
 
 (defn watching?
   "Check if you are watching a repository."
@@ -567,14 +574,18 @@
 
 (defn releases
   "List releases for a repository."
-  [user repo]
-  (api-call :get "repos/%s/%s/releases" [user repo]))
+  [user repo & [options]]
+  (api-call :get "repos/%s/%s/releases" [user repo] options))
 
 (defn specific-release
   "Gets a specific release."
   [user repo id & [options]]
   (api-call :get "repos/%s/%s/releases/%s" [user repo id] options))
 
+(defn specific-release-by-tag
+  "Gets a specific release by tag."
+  [user repo tag & [options]]
+  (api-call :get "repos/%s/%s/releases/tags/%s" [user repo tag] options))
 
 (defn create-release
   "Creates a release.

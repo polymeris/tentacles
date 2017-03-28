@@ -11,6 +11,9 @@
        [goog.string.format]
        [cemerick.url :as url])))
 
+(defn reactions-header [m]
+  (assoc m :accept "application/vnd.github.squirrel-girl-preview"))
+
 (def ^:dynamic url "https://api.github.com/")
 (def ^:dynamic defaults {})
 
@@ -66,25 +69,25 @@
 (defn safe-parse
   "Takes a response and checks for certain status codes. If 204, return nil.
    If 400, 401, 204, 422, 403, 404 or 500, return the original response with the body parsed
-   as json. Otherwise, parse and return the body if json, or return the body if raw."
+   as json. Otherwise, parse and return the body if json, or return the body if not json"
   [{:keys [headers status body] :as resp}]
   (cond
-    (= 202 status)
-    ::accepted
-    (= 304 status)
-    ::not-modified
-    (#{400 401 204 422 403 404 500} status)
-    (update-in resp [:body] parse-json)
-    :else (let [links (parse-links (get headers "link" ""))
-                content-type (get headers "content-type")
-                metadata (extract-useful-meta headers)]
-            (if-not (.contains content-type "raw")
-              (let [parsed (parse-json body)]
-                (if (map? parsed)
-                  (with-meta parsed {:links links :api-meta metadata})
-                  (with-meta (map #(with-meta % metadata) parsed)
-                             {:links links :api-meta metadata})))
-              body))))
+   (= 202 status)
+   ::accepted
+   (= 304 status)
+   ::not-modified
+   (#{400 401 204 422 403 404 500} status)
+   (update-in resp [:body] parse-json)
+   :else (let [links (parse-links (get headers "link" ""))
+               content-type (get headers "content-type")
+               metadata (extract-useful-meta headers)]
+           (if (.contains content-type "json")
+             (let [parsed (parse-json body)]
+               (if (map? parsed)
+                 (with-meta parsed {:links links :api-meta metadata})
+                 (with-meta (map #(with-meta % metadata) parsed)
+                   {:links links :api-meta metadata})))
+             body))))
 
 (defn update-req
   "Given a clj-http request, and a 'next' url string, merge the next url into the request"
@@ -118,17 +121,18 @@
                           {:headers {"Accept" accept}})
                         (when oauth-token
                           {:headers {"Authorization" (str "token " oauth-token)}})
-                        (when etag
-                          {:headers {"if-None-Match" etag}})
                         (when user-agent
                           {:headers {"User-Agent" user-agent}})
                         (when otp
                           {:headers {"X-GitHub-OTP" otp}})
-                        (when if-modified-since
-                          {:headers {"if-Modified-Since" if-modified-since}}))
+                        (when-not (query :all-pages)
+                          (when etag
+                            {:headers {"if-None-Match" etag}})
+                          (when if-modified-since
+                            {:headers {"if-Modified-Since" if-modified-since}})))
         raw-query (:raw query)
         proper-query (query-map (dissoc query :auth :oauth-token :all-pages :accept :user-agent :otp))
-        req (if (#{:post :put :delete} method)
+        req (if (#{:post :put :delete :patch} method)
               (assoc req :body (unparse-json (or raw-query proper-query)))
               (assoc req :query-params proper-query))]
     req))
@@ -137,18 +141,20 @@
   ([method end-point] (api-call method end-point nil nil))
   ([method end-point positional] (api-call method end-point positional nil))
   ([method end-point positional query]
-   (let [query (or query {})
-         all-pages? (query :all-pages)
-         req (make-request method end-point positional query)
-         exec-request-one (fn exec-request-one [req]
-                            (safe-parse (http/request req)))
-         exec-request (fn exec-request [req]
-                        (let [resp (exec-request-one req)]
-                          (if (and all-pages? (-> resp meta :links :next))
-                            (let [new-req (update-req req (-> resp meta :links :next))]
-                              (lazy-cat resp (exec-request new-req)))
-                            resp)))]
-     (exec-request req))))
+     (let [query (or query {})
+           all-pages? (query :all-pages)
+           req (make-request method end-point positional query)
+           exec-request-one (fn exec-request-one [req]
+                              (safe-parse (http/request req)))
+           exec-request (fn exec-request [req]
+                          (let [resp (exec-request-one req)]
+                            (cond (and all-pages? (-> resp meta :links :next))
+                                  (let [new-req (update-req req (-> resp meta :links :next))]
+                                    (lazy-cat resp (exec-request new-req)))
+                                  (and (seq resp) (seq (first resp)))
+                                  resp
+                                  :else nil)))]
+       (exec-request req))))
 
 (defn raw-api-call
   ([method end-point] (raw-api-call method end-point nil nil))

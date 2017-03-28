@@ -1,0 +1,53 @@
+v0.6.2
+
+v0.6.1 - 18 Mar 2014
+- Remove unneeded runtime dependency on adzerk/boot-test
+
+v0.6.0 - 14 Mar 2014
+- the first release by irresponsible.
+- Add Notifications API: Raynes/tentacles#93
+- Add Reactions API: Raynes/tentacles#96
+- Fix Raynes/tentacles#81: Requests error out when body is not json
+- Merge Raynes/tentacles#109: Update to new watch endpoint
+- Merge Raynes/tentacles#110: Bugs with conditional requests and :all-pages true
+- Fix Raynes/tentacles#64: Collection responses wth extra empty maps as last element
+- Bumped deps and updated docs
+- Started keeping changelog
+- Fixed reported documentation issues
+- Packaging Moved to boot ( But jitpack support retained )
+
+v0.5.1
+
+v0.5.0
+
+v0.4.0
+
+v0.3.0 - 21 Dec 2014
+
+v0.2.7
+
+v0.2.6
+
+v0.2.5
+
+v0.2.4
+
+v0.2.3
+
+v0.2.2
+
+v0.2.1
+
+v0.2.0
+
+v0.2.0-beta1
+
+v0.1.4
+
+v0.1.3 - 09 Dec 2011
+
+v0.1.2
+
+v0.1.1
+
+v0.1.0 - 30 Nov 2011
